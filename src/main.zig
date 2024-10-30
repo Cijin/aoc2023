@@ -1,5 +1,5 @@
 const std = @import("std");
-const partOne = @import("01/part1.zig");
+const partOne = @import("01/main.zig");
 
 pub fn main() void {
     partOne.part_one() catch |err| {
