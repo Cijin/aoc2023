@@ -7,7 +7,7 @@ const fs = std.fs;
 
 const NotFound = error{ NoneExist, Nan };
 
-fn is_possible_num(l: u8) NotFound![]const []const u8 {
+fn isPossibleNum(l: u8) NotFound![]const []const u8 {
     return switch (l) {
         'o' => &[_][]const u8{"one"},
         't' => &[_][]const u8{ "two", "three" },
@@ -19,36 +19,35 @@ fn is_possible_num(l: u8) NotFound![]const []const u8 {
     };
 }
 
-fn needle_in_haystacks(needle: []u8, haystacks: []const []const u8) NotFound!usize {
-    print("Needle: {s}\n", .{needle});
-    for (haystacks, 0..) |haystack, i| {
-        if (std.mem.containsAtLeast(u8, haystack, 1, needle)) {
-            return i;
+fn needleInHaystack(needle: []u8, haystacks: []const []const u8) !void {
+    for (haystacks) |haystack| {
+        if (std.mem.startsWith(u8, haystack, needle)) {
+            return;
         }
     }
 
     return NotFound.NoneExist;
 }
 
-fn get_value(num: []const u8) NotFound!u8 {
+fn getValue(num: []const u8) NotFound!u8 {
     if (std.mem.eql(u8, num, "one")) {
-        return '1';
+        return 1;
     } else if (std.mem.eql(u8, num, "two")) {
-        return '2';
+        return 2;
     } else if (std.mem.eql(u8, num, "three")) {
-        return '3';
+        return 3;
     } else if (std.mem.eql(u8, num, "four")) {
-        return '4';
+        return 4;
     } else if (std.mem.eql(u8, num, "five")) {
-        return '5';
+        return 5;
     } else if (std.mem.eql(u8, num, "six")) {
-        return '6';
+        return 6;
     } else if (std.mem.eql(u8, num, "seven")) {
-        return '7';
+        return 7;
     } else if (std.mem.eql(u8, num, "eight")) {
-        return '8';
+        return 8;
     } else if (std.mem.eql(u8, num, "nine")) {
-        return '9';
+        return 9;
     }
 
     return NotFound.NoneExist;
@@ -63,67 +62,71 @@ pub fn part_one() !void {
 
     var buf: [1024]u8 = undefined;
     var sum: u32 = 0;
-    var byteBuffer: [10]u8 = .{0} ** 10;
-    var byteBufferIndex: usize = 0;
-    const maxBufferIndex: usize = 5;
+    var buffer: [10]u8 = .{0} ** 10;
+    var bufferIdx: usize = 0;
+    const maxBufferIdx: usize = 5;
     var possibleNums: []const []const u8 = undefined;
 
     while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
-        var nums: [10]u8 = undefined;
+        var nums: [20]u8 = undefined;
         var i: usize = 0;
         var possibleNum: u8 = undefined;
 
         for (line) |byte| {
             switch (byte) {
                 '0'...'9' => {
-                    nums[i] = byte;
+                    nums[i] = byte - '0';
                     i += 1;
                 },
                 'a'...'z' => {
-                    if (byteBufferIndex == 0) {
-                        assert(byteBuffer[byteBufferIndex] == 0);
+                    if (bufferIdx == 0) {
+                        assert(buffer[bufferIdx] == 0);
 
-                        possibleNums = is_possible_num(byte) catch {
+                        possibleNums = isPossibleNum(byte) catch {
                             continue;
                         };
 
-                        if (possibleNums.len != 0) {
-                            assert(byteBuffer[byteBufferIndex] == 0);
-
-                            byteBuffer[byteBufferIndex] = byte;
-                            byteBufferIndex += 1;
-                        }
+                        buffer[bufferIdx] = byte;
+                        bufferIdx += 1;
                         continue;
                     }
 
-                    assert(byteBufferIndex < maxBufferIndex);
-                    assert(byteBuffer[byteBufferIndex] == 0);
+                    assert(bufferIdx < maxBufferIdx);
+                    assert(buffer[bufferIdx] == 0);
 
-                    byteBuffer[byteBufferIndex] = byte;
-                    byteBufferIndex += 1;
+                    buffer[bufferIdx] = byte;
+                    bufferIdx += 1;
 
-                    const foundIndex: usize = needle_in_haystacks(byteBuffer[0..(byteBufferIndex + 1)], possibleNums) catch {
-                        @memset(&byteBuffer, 0);
-                        byteBufferIndex = 0;
+                    needleInHaystack(buffer[0..bufferIdx], possibleNums) catch {
+                        @memset(&buffer, 0);
+                        bufferIdx = 0;
+
+                        possibleNums = isPossibleNum(byte) catch {
+                            continue;
+                        };
+                        buffer[bufferIdx] = byte;
+                        bufferIdx += 1;
                         continue;
                     };
 
-                    possibleNum = get_value(possibleNums[foundIndex]) catch {
+                    possibleNum = getValue(buffer[0..bufferIdx]) catch {
                         continue;
                     };
 
                     nums[i] = possibleNum;
-                    @memset(&byteBuffer, 0);
-                    byteBufferIndex = 0;
                     i += 1;
+
+                    @memset(&buffer, 0);
+                    bufferIdx = 0;
                 },
                 else => {
                     continue;
                 },
             }
         }
-        const num1: u8 = (nums[0] - '0');
-        const num2: u8 = (nums[i - 1] - '0');
+        const num1: u8 = nums[0];
+        const num2: u8 = nums[i - 1];
+        print("Num: {s}\t {d},{d}\n", .{ nums, num1, nums.len });
 
         sum += ((num1 * 10) + num2);
     }
