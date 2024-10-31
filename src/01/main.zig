@@ -126,7 +126,7 @@ pub fn part_one() !void {
         }
         const num1: u8 = nums[0];
         const num2: u8 = nums[i - 1];
-        print("Num: {s}\t {d},{d}\n", .{ nums, num1, nums.len });
+        print("{d}{d}\n", .{ num1, num2 });
 
         sum += ((num1 * 10) + num2);
     }
