@@ -1,8 +1,8 @@
 const std = @import("std");
-const two = @import("02/main.zig");
+const three = @import("03/main.zig");
 
 pub fn main() void {
-    two.solve() catch |err| {
+    three.solve() catch |err| {
         std.debug.print("there was an error {}\n", .{err});
     };
 }
