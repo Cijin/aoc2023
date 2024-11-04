@@ -3,32 +3,31 @@ const print = std.debug.print;
 const assert = std.debug.assert;
 const fs = std.fs;
 
-const maxAllowed = enum(u8) {
-    red = 12,
+const colors = enum(u8) {
+    red,
     green,
     blue,
 };
 
-fn getCount(str: []const u8) !u8 {
-    var it = std.mem.splitScalar(u8, str, ' ');
-    _ = it.first();
-    const count = it.next().?;
-    return std.fmt.parseUnsigned(u8, count, 10);
-}
+const ColorCount = struct { count: u32, color: colors };
 
-fn isValidGame(game: []u8) bool {
+const ColorError = error{
+    NotFound,
+};
+
+fn getColorCount(game: []const u8) !ColorCount {
     var it = std.mem.splitScalar(u8, game, ' ');
-    const count: u8 = std.fmt.parseUnsigned(u8, it.first(), 10) catch {
-        return false;
-    };
-    const color = it.next().?;
-
-    switch (color[0]) {
-        'r' => return count <= @intFromEnum(maxAllowed.red),
-        'g' => return count <= @intFromEnum(maxAllowed.green),
-        'b' => return count <= @intFromEnum(maxAllowed.blue),
-        else => return false,
+    const count: u32 = try std.fmt.parseUnsigned(u8, it.first(), 10);
+    if (it.next()) |color| {
+        switch (color[0]) {
+            'r' => return .{ .count = count, .color = colors.red },
+            'g' => return .{ .count = count, .color = colors.green },
+            'b' => return .{ .count = count, .color = colors.blue },
+            else => return ColorError.NotFound,
+        }
     }
+
+    return ColorError.NotFound;
 }
 
 pub fn solve() !void {
@@ -44,34 +43,69 @@ pub fn solve() !void {
     }
 
     const allocator = gpa.allocator();
-    var gameIdSum: u32 = 0;
-    var gameId: u8 = 0;
+    var gamePowerSum: u32 = 0;
+    var colorCount: ColorCount = undefined;
     while (try file.reader().readUntilDelimiterOrEofAlloc(allocator, '\n', std.math.maxInt(usize))) |line| {
         defer allocator.free(line);
 
         var it = std.mem.splitSequence(u8, line, ": ");
-        gameId = try getCount(it.first());
+        var maxRed: u32 = 0;
+        var maxGreen: u32 = 0;
+        var maxBlue: u32 = 0;
+        _ = it.first();
 
         var gamesIt = std.mem.splitSequence(u8, it.rest(), "; ");
-        var isGameValid = true;
-        while (gamesIt.peek() != null and isGameValid) {
+        while (gamesIt.peek() != null) {
             const game = gamesIt.next() orelse break;
             if (std.mem.containsAtLeast(u8, game, 1, ",")) {
                 var gameIt = std.mem.splitSequence(u8, game, ", ");
-                while (gameIt.peek() != null and isGameValid) {
+                while (gameIt.peek() != null) {
                     if (gameIt.next()) |value| {
-                        isGameValid = isValidGame(@constCast(value));
+                        colorCount = try getColorCount(value);
+                        switch (colorCount.color) {
+                            .red => {
+                                if (colorCount.count > maxRed) {
+                                    maxRed = colorCount.count;
+                                }
+                            },
+                            .green => {
+                                if (colorCount.count > maxGreen) {
+                                    maxGreen = colorCount.count;
+                                }
+                            },
+                            .blue => {
+                                if (colorCount.count > maxBlue) {
+                                    maxBlue = colorCount.count;
+                                }
+                            },
+                        }
                     }
                 }
             } else {
-                isGameValid = isValidGame(@constCast(game));
+                colorCount = try getColorCount(game);
+                switch (colorCount.color) {
+                    .red => {
+                        if (colorCount.count > maxRed) {
+                            maxRed = colorCount.count;
+                        }
+                    },
+                    .green => {
+                        if (colorCount.count > maxGreen) {
+                            maxGreen = colorCount.count;
+                        }
+                    },
+                    .blue => {
+                        if (colorCount.count > maxBlue) {
+                            maxBlue = colorCount.count;
+                        }
+                    },
+                }
             }
         }
-        if (isGameValid) {
-            //print("Valid game id {}\n", .{gameId});
-            gameIdSum += gameId;
-        }
+
+        print("max r:{d}, g:{d}, b:{d}\n", .{ maxRed, maxGreen, maxBlue });
+        gamePowerSum += maxRed * maxGreen * maxBlue;
     }
 
-    print("Game Id Sum: {d}\n", .{gameIdSum});
+    print("Game power sum: {d}\n", .{gamePowerSum});
 }
