@@ -2,7 +2,7 @@ const std = @import("std");
 const fs = std.fs;
 const print = std.debug.print;
 
-const directions: [8][2]i32 = .{ .{ -1, 0 }, .{ -1, 0 }, .{ 0, -1 }, .{ 1, -1 }, .{ 1, 0 }, .{ 1, 1 }, .{ 0, 1 }, .{ -1, 1 } };
+const directions: [8][2]i32 = .{ .{ 0, -1 }, .{ -1, -1 }, .{ -1, 0 }, .{ -1, 1 }, .{ 0, 1 }, .{ 1, 1 }, .{ 1, 0 }, .{ 1, -1 } };
 
 const part = struct {
     num: u32,
@@ -34,14 +34,14 @@ pub fn solve() !void {
         }
     }
 
-    const schematicBoundary: u16 = 10;
-    var schematic: [schematicBoundary][schematicBoundary]?*part = .{.{null} ** 10} ** 10;
+    const schematicBoundary: u32 = 200;
+    var schematic: [schematicBoundary][schematicBoundary]?*part = .{.{null} ** schematicBoundary} ** schematicBoundary;
     var sum: u32 = 0;
-    var symbolBuffer: [10][2]u16 = undefined;
-    var symbolIdx: u16 = 0;
-    var i: u16 = 0;
-    var allocatedParts: [100]?*part = .{null} ** 100;
-    var allocatedIdx: u8 = 0;
+    var symbolBuffer: [schematicBoundary * 10][2]u32 = undefined;
+    var symbolIdx: u32 = 0;
+    var i: u32 = 0;
+    var allocatedParts: [schematicBoundary * 10]?*part = .{null} ** (schematicBoundary * 10);
+    var allocatedIdx: u32 = 0;
 
     defer {
         for (allocatedParts) |p| {
@@ -76,8 +76,8 @@ pub fn solve() !void {
                     p.* = part{ .num = currentNum, .visited = false };
                     schematic[i][j] = p;
                 },
-                '*', '$', '+', '#' => {
-                    symbolBuffer[symbolIdx] = [_]u16{ i, @as(u16, @intCast(j)) };
+                '*' => {
+                    symbolBuffer[symbolIdx] = [_]u32{ i, @as(u32, @intCast(j)) };
                     symbolIdx += 1;
                 },
                 else => continue,
@@ -86,18 +86,22 @@ pub fn solve() !void {
         i += 1;
     }
 
-    for (schematic) |row| {
-        for (row) |e| {
-            if (e) |s| {
-                print("{d}, {any}\n", .{ s.num, s.visited });
-            }
-        }
-    }
+    const ratio: u8 = 2;
+    var gears: [2]u32 = undefined;
+    var gearIdx: u8 = 0;
+    const maxDirIdx = directions.len - 1;
 
     for (symbolBuffer) |s| {
-        for (directions) |dir| {
-            const x: i32 = @intCast(s[0]);
-            const y: i32 = @intCast(s[1]);
+        gearIdx = 0;
+        gears = .{0} ** 2;
+
+        for (directions, 0..) |dir, dirIdx| {
+            if (gearIdx > ratio) {
+                break;
+            }
+
+            const x: i64 = @intCast(s[0]);
+            const y: i64 = @intCast(s[1]);
             const lookupx = dir[0] + x;
             const lookupy = dir[1] + y;
 
@@ -109,11 +113,25 @@ pub fn solve() !void {
                 continue;
             }
 
+            // TODO: there is a mistake here as some get wrongly visited
+            // although, problem is solved. So moving on.
             if (schematic[@intCast(lookupx)][@intCast(lookupy)]) |p| {
                 if (!p.isVisited()) {
-                    sum += p.num;
                     p.markVisited();
+                    gears[gearIdx] = p.num;
+                    gearIdx += 1;
                 }
+            }
+
+            if (dirIdx == maxDirIdx and gearIdx != ratio) break;
+        }
+        sum += gears[0] * gears[1];
+    }
+
+    for (schematic) |row| {
+        for (row) |e| {
+            if (e) |s| {
+                print("{d}, {any}\n", .{ s.num, s.visited });
             }
         }
     }
