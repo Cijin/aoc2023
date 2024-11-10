@@ -8,8 +8,8 @@ const part = struct {
     num: u32,
     visited: bool,
 
-    fn append(self: *part, i: u8) void {
-        self.num = (self.num * 10) + i;
+    fn append(self: *part, n: u8) void {
+        self.num = (self.num * 10) + n;
     }
 
     fn markVisited(self: *part) void {
@@ -35,11 +35,21 @@ pub fn solve() !void {
     }
 
     const schematicBoundary: u16 = 10;
-    var sum: u32 = 0;
     var schematic: [schematicBoundary][schematicBoundary]?*part = .{.{null} ** 10} ** 10;
+    var sum: u32 = 0;
     var symbolBuffer: [10][2]u16 = undefined;
     var symbolIdx: u16 = 0;
     var i: u16 = 0;
+    var allocatedParts: [100]?*part = .{null} ** 100;
+    var allocatedIdx: u8 = 0;
+
+    defer {
+        for (allocatedParts) |p| {
+            if (p) |allocatedPart| {
+                allocator.destroy(allocatedPart);
+            }
+        }
+    }
 
     while (file.reader().readUntilDelimiterOrEofAlloc(allocator, '\n', std.math.maxInt(u16)) catch |err| {
         std.log.err("Failed to read line: {s}\n", .{@errorName(err)});
@@ -51,12 +61,20 @@ pub fn solve() !void {
             switch (char) {
                 '0'...'9' => {
                     const currentNum: u8 = char - '0';
-                    if (schematic[i][j]) |s| {
-                        s.append(currentNum);
-                    } else {
-                        var p = part{ .num = currentNum, .visited = false };
-                        schematic[i][j] = &p;
+                    if (j > 0) {
+                        if (schematic[i][j - 1]) |s| {
+                            s.append(currentNum);
+                            schematic[i][j] = s;
+                            continue;
+                        }
                     }
+
+                    const p = try allocator.create(part);
+                    allocatedParts[allocatedIdx] = p;
+                    allocatedIdx += 1;
+
+                    p.* = part{ .num = currentNum, .visited = false };
+                    schematic[i][j] = p;
                 },
                 '*', '$', '+', '#' => {
                     symbolBuffer[symbolIdx] = [_]u16{ i, @as(u16, @intCast(j)) };
@@ -101,7 +119,4 @@ pub fn solve() !void {
     }
 
     print("Sum: {d}\n", .{sum});
-    // for each symbol traverse all directions
-    // save numbers at those locations if any
-    // should i traverse through numbers or number; 4,6,7 or 467?
 }
